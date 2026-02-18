@@ -69,13 +69,13 @@ jobs:
         mvn -V clean install -f ci.common --batch-mode --no-transfer-progress --errors -DtrimStackTrace=false -DskipTests
     # Run tests that require a minimum of Java 17 or later
     - name: Run tests that require a minimum of Java 17 or later
-      if: ${{ matrix.java == '17' || matrix.java == '21' }}
+      if: ${{ matrix.java != '8' || matrix.java != '11' }}
       run:
         ./gradlew clean install check -P"test.include"="**/TestSpringBootApplication30*,**/TestCompileJSPSource17*" -Druntime=${{ matrix.RUNTIME }} -DruntimeVersion="${{ matrix.RUNTIME_VERSION }}" --stacktrace --info --warning-mode=all
     # Run tests
     - name: Run tests with Gradle on Ubuntu
       run:
-        ./gradlew clean install check -P"test.exclude"="**/TestSpringBootApplication20*,**/TestSpringBootApplication30*,**/TestCompileJSPSource17*,**/DevContainerTest*" -Druntime=${{ matrix.RUNTIME }} -DruntimeVersion="${{ matrix.RUNTIME_VERSION }}" --stacktrace --info --warning-mode=all
+        ./gradlew clean install check -P"test.exclude"="**/TestSpringBootApplication20*,**/TestSpringBootApplication30*,**/LibertyToolchainTest*,**/TestLooseApplicationToolchain*,**/TestCompileJSPSource17*,*/DevContainerTest*, **/DevModeToolchainTest*" -Druntime=${{ matrix.RUNTIME }} -DruntimeVersion="${{ matrix.RUNTIME_VERSION }}" --stacktrace --info --warning-mode=all
     # Copy build reports and upload artifact if build failed
     - name: Copy build/report/tests/test for upload
       if: ${{ failure() }}
@@ -111,7 +111,7 @@ jobs:
           RUNTIME: wlp
     name: ${{ matrix.RUNTIME }} ${{ matrix.RUNTIME_VERSION }}, Java ${{ matrix.java }}, Windows
     env:
-      TEST_EXCLUDE: ${{ '**/Polling*,**/LibertyTest*,**/LibertyToolchainTest*,**/GenerateFeaturesTest*,**/TestSpringBootApplication*,**/DevContainerTest*,**/DevModeToolchainTest*' }}
+      TEST_EXCLUDE: ${{ '**/Polling*,**/LibertyTest*,**/LibertyToolchainTest*,**/TestLooseApplicationToolchain*,**/GenerateFeaturesTest*,**/TestSpringBootApplication*,**/DevContainerTest*,**/DevModeToolchainTest*' }}
     steps:
     # Checkout repos
     - name: Checkout ci.gradle

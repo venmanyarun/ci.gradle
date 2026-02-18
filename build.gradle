@@ -177,7 +177,7 @@ test {
             }
 
             // set the properties value
-            prop.setProperty("lgpVersion", "3.10.0")
+            prop.setProperty("lgpVersion", "3.9.4")
             prop.setProperty("runtimeGroup", runtimeGroup)
             prop.setProperty("runtimeArtifactId", runtimeArtifactId)
             prop.setProperty("kernelArtifactId", kernelArtifactId)
