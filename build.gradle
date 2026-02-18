@@ -134,7 +134,7 @@ tasks.register('javadocJar', Jar) {
 }
 
 test {
-    failOnNoDiscoveredTests = false
+   // failOnNoDiscoveredTests = false
     minHeapSize = "1G"
     maxHeapSize = "3G"
 
