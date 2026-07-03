@@ -1,0 +1,54 @@
+
+apply plugin: 'java'
+apply plugin: 'war'
+
+description = 'WAR Module'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Explicit sourceSets block — this is the key aspect of this test resource.
+// With 'java' applied, sourceSets.findByName('main') in DevTask.groovy and
+// siblingProject.extensions.findByType(SourceSetContainer) in DeployTask.groovy
+// both return non-null objects, covering the non-null branch of the fix.
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+    }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    compileOnly 'javax.servlet:javax.servlet-api:4.0.1'
+    implementation project(path: ':jar', configuration: 'jarOnly')
+}
+
+// Create a custom configuration that only includes the WAR artifact
+configurations {
+    warOnly
+}
+
+artifacts {
+    warOnly war
+}
+
+war {
+    archiveFileName = rootProject.name + "-" + getArchiveBaseName().get() + "-" + rootProject.version + '.' + getArchiveExtension().get()
+}
+
+war.dependsOn ':jar:jar'

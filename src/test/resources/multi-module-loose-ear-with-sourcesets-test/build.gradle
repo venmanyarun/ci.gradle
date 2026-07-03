@@ -1,0 +1,20 @@
+allprojects {
+    group = 'io.openliberty.guides'
+    version = '1.0-SNAPSHOT'
+}
+
+// The 'java' plugin is applied explicitly in jar/build.gradle and war/build.gradle.
+// The EAR module intentionally does NOT receive 'java' here — it only has
+// 'ear' + 'liberty' applied in ear/build.gradle.
+//
+// The WAR submodule's explicit sourceSets {} block (in war/build.gradle) is what
+// this test resource is designed to exercise: siblingProject.extensions
+// .findByType(SourceSetContainer) in DeployTask.groovy returns a non-null
+// container, and sourceSets.findByName('main') in DevTask.groovy returns a
+// real SourceSet — covering the non-null branch of the fix.
+subprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}

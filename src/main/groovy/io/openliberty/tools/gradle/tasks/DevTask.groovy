@@ -1210,7 +1210,7 @@ class DevTask extends AbstractFeatureTask {
 
     // If a argument has not been set using CLI arguments set a default value
     // Using the ServerExtension properties if available, otherwise use hardcoded defaults
-    private void initializeDefaultValues() throws Exception {
+    protected void initializeDefaultValues() throws Exception {
         if (verifyAppStartTimeout == null) {
             if (server.verifyAppStartTimeout != 0) {
                 verifyAppStartTimeout = server.verifyAppStartTimeout;
@@ -1488,7 +1488,8 @@ class DevTask extends AbstractFeatureTask {
         }
     }
 
-    private List<ProjectModule> getProjectModules() {
+    @Internal
+    protected List<ProjectModule> getProjectModules() {
         List<ProjectModule> upstreamProjects = new ArrayList<ProjectModule>();
         for (Project dependencyProject : DevTaskHelper.getAllUpstreamProjects(project)) {
             // In Maven , there is a step to set compiler options for upstream project
@@ -1542,7 +1543,7 @@ class DevTask extends AbstractFeatureTask {
         return upstreamProjects;
     }
 
-    private boolean isInstallDirChanged(Project project, File currentInstallDir) {
+    protected boolean isInstallDirChanged(Project project, File currentInstallDir) {
         if (project.getLayout().getBuildDirectory().getAsFile().get().exists() && new File(project.getLayout().getBuildDirectory().getAsFile().get(), 'liberty-plugin-config.xml').exists()) {
             XmlParser pluginXmlParser = new XmlParser()
             Node libertyPluginConfig = pluginXmlParser.parse(new File(project.getLayout().getBuildDirectory().getAsFile().get(), 'liberty-plugin-config.xml'))
@@ -1562,7 +1563,7 @@ class DevTask extends AbstractFeatureTask {
     }
 
 
-    private void addLibertyRuntimeProperties(BuildLauncher gradleBuildLauncher) {
+    protected void addLibertyRuntimeProperties(BuildLauncher gradleBuildLauncher) {
         Set<Entry<Object, Object>> entries = project.getProperties().entrySet()
         for (Entry<Object, Object> entry : entries) {
             String key = (String) entry.getKey()
@@ -1584,7 +1585,7 @@ class DevTask extends AbstractFeatureTask {
     }
 
     // Get dev extension parameter values from build.gradle if not specified on the command line
-    private void processDevExtensionParams() throws Exception {
+    protected void processDevExtensionParams() throws Exception {
         // process parameters from dev extension
         if (container == null) {
             boolean buildContainerSetting = project.liberty.dev.container; // get from build.gradle or from -Pdev_mode_container=true
