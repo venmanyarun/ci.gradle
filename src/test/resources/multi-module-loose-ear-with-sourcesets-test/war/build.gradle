@@ -12,17 +12,17 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-// Explicit sourceSets block — this is the key aspect of this test resource.
-// With 'java' applied, sourceSets.findByName('main') in DevTask.groovy and
-// siblingProject.extensions.findByType(SourceSetContainer) in DeployTask.groovy
-// both return non-null objects, covering the non-null branch of the fix.
+// Explicit sourceSets block with NON-DEFAULT paths.
+// This is the key aspect of this test resource: the paths differ from what
+// DevTask.groovy and DeployTask.groovy would fall back to if they ignored the
+// SourceSet and just used conventional defaults.
 sourceSets {
     main {
         java {
-            srcDirs = ['src/main/java']
+            srcDirs = ['src/war/java']
         }
         resources {
-            srcDirs = ['src/main/resources']
+            srcDirs = ['src/war/resources']
         }
     }
     test {

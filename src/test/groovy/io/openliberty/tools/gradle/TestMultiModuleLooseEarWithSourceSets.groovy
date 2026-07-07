@@ -122,9 +122,8 @@ class TestMultiModuleLooseEarWithSourceSets extends AbstractIntegrationTest {
         NodeList dirs = (NodeList) xPath.compile(expression).evaluate(doc, XPathConstants.NODESET)
         Assert.assertTrue("Expected <dir> elements inside the WAR archive", dirs.getLength() > 0)
 
-        // The WAR module has an explicit sourceSets block: classes are in build/classes/java/main.
-        // DeployTask resolves this via siblingMainSourceSet.getOutput().getClassesDirs().
-        String warClassesDir = "multi-module-loose-ear-with-sourcesets-deploy-test/war/build/classes/java/main"
+        // The WAR module declares a NON-DEFAULT source dir: src/war/java (not src/main/java).
+         String warClassesDir = "multi-module-loose-ear-with-sourcesets-deploy-test/war/build/classes/java/main"
         boolean foundWarClasses = false
         for (int i = 0; i < dirs.getLength(); i++) {
             String src = dirs.item(i).getAttributes().getNamedItem("sourceOnDisk").getNodeValue()

@@ -104,8 +104,11 @@ class TestMultiModuleEarWithSourceSetsDevMode extends BaseDevTest {
      */
     @Test
     void modifyJavaFileInWarSubmoduleWithExplicitSourceSetsTriggersRecompilation() throws Exception {
+        // Source is in the custom non-default srcDir 'src/war/java' (not 'src/main/java').
+        // DevTask reads sourceDirectory from mainSourceSet.java.srcDirs — if it fell back
+        // to the default "src/main/java" it would watch the wrong directory and miss changes.
         File srcServlet = new File(buildDir,
-                "war/src/main/java/io/openliberty/guides/multimodules/web/HelloServlet.java")
+                "war/src/war/java/io/openliberty/guides/multimodules/web/HelloServlet.java")
         File targetServlet = new File(buildDir,
                 "war/build/classes/java/main/io/openliberty/guides/multimodules/web/HelloServlet.class")
 
