@@ -1,0 +1,28 @@
+apply plugin: 'java'
+
+description = 'JAR Module — compilerArgs exercising getGradleCompilerOptions()'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs = ['-parameters', '-Xlint:-processing']
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+}
+
+configurations {
+    jarOnly
+}
+
+artifacts {
+    jarOnly jar
+}
+
+jar {
+    archiveFileName = rootProject.name + "-" + getArchiveBaseName().get() + "-" + rootProject.version + '.' + getArchiveExtension().get()
+}

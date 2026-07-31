@@ -1,0 +1,29 @@
+apply plugin: 'java'
+
+description = 'JAR Module — Lombok annotation processor exercising getGradleCompilerOptions()'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    compileOnly 'org.projectlombok:lombok:1.18.42'
+    annotationProcessor 'org.projectlombok:lombok:1.18.42'
+}
+
+configurations {
+    jarOnly
+}
+
+artifacts {
+    jarOnly jar
+}
+
+jar {
+    archiveFileName = rootProject.name + "-" + getArchiveBaseName().get() + "-" + rootProject.version + '.' + getArchiveExtension().get()
+}
