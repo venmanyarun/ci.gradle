@@ -46,7 +46,11 @@ import javax.xml.transform.TransformerException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.util.Collections
+import java.util.LinkedHashMap
 import java.util.Map.Entry
+import java.util.Set
+import io.openliberty.tools.gradle.utils.ServerEnvUtil
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 import org.gradle.util.GradleVersion
@@ -240,7 +244,8 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
             Properties defaultServerEnvProps = convertServerEnvToProperties(defaultEnvFile)
 
             Properties mergedProperties = combineServerEnvProperties(defaultServerEnvProps, configDirServerEnvProps)
-            writeServerEnvProperties(defaultEnvFile, mergedProperties)
+            // backslash-to-forward-slash normalisation should be applied to any value.
+            writeServerEnvProperties(defaultEnvFile, mergedProperties, Collections.emptySet())
 
         }
         else {
@@ -869,19 +874,19 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
 
     protected String handleServerEnvFileAndProperties(String serverEnvPath, String serverDirectory) {
         File envFile = new File(serverDirectory, "server.env")
-        Properties configuredProps = combineServerEnvProperties(server.env, envProjectProps);
+        // server.env and envProjectProps are Gradle-inline props (build.gradle / command line)
+        Map<String, String> configuredProps = combineServerEnvProperties(server.env ?: [:], envProjectProps)
 
-        if(server.mergeServerEnv) {
+        if (server.mergeServerEnv) {
             return setServerEnvWithAppendServerEnvHelper(envFile, serverEnvPath, configuredProps)
-        }
-        else {
+        } else {
             return setServerEnvHelper(envFile, serverEnvPath, configuredProps)
         }
     }
 
-    protected String setServerEnvWithAppendServerEnvHelper(File envFile, String serverEnvPath, Properties configuredProps) {
-        Properties serverEnvProps = convertServerEnvToProperties(envFile);
-        Properties mergedProperties = new Properties();
+    protected String setServerEnvWithAppendServerEnvHelper(File envFile, String serverEnvPath, Map<String, String> configuredProps) {
+        Map<String, String> serverEnvProps = convertServerEnvToProperties(envFile)
+        Map<String, String> mergedProperties = new LinkedHashMap<>()
 
         if (server.serverEnvFile != null && server.serverEnvFile.exists()) {
             if (serverEnvPath != null) {
@@ -889,9 +894,8 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
             } else {
                 logger.debug("The serverEnvFile "+ server.serverEnvFile.getCanonicalPath() + " is merged with the " + getServerDir(project).getCanonicalPath() + " file.")
             }
-            Properties configuredServerEnvProps = convertServerEnvToProperties(server.serverEnvFile);
-            //Merge with either default server.env or with what has already been merged if
-            mergedProperties = (Properties) combineServerEnvProperties(serverEnvProps, configuredServerEnvProps);
+            Map<String, String> configuredServerEnvProps = convertServerEnvToProperties(server.serverEnvFile)
+            mergedProperties = combineServerEnvProperties(serverEnvProps, configuredServerEnvProps)
         }
 
         if (!configuredProps.isEmpty()) {
@@ -900,23 +904,22 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
             } else {
                 logger.debug("The " + getServerDir(project).getCanonicalPath() + " file is merged with inlined configuration.")
             }
-
-            if (mergedProperties.isEmpty()) {
-                mergedProperties = combineServerEnvProperties(serverEnvProps, configuredProps);
-            } else {
-                mergedProperties = combineServerEnvProperties(mergedProperties, configuredProps);
-            }
+            mergedProperties = mergedProperties.isEmpty() ?
+                combineServerEnvProperties(serverEnvProps, configuredProps) :
+                combineServerEnvProperties(mergedProperties, configuredProps)
         }
 
-        if(!mergedProperties.isEmpty()) {
-            writeServerEnvProperties(envFile, mergedProperties);
+        if (!mergedProperties.isEmpty()) {
+            // Apply backslash normalisation only to Gradle-inline keys; file-sourced values
+            // (e.g. Windows paths, !VAR! expansion refs) must be written verbatim.
+            writeServerEnvProperties(envFile, mergedProperties, configuredProps.keySet())
             return setServerEnvPathHelperForAppendServerEnv(envFile, configuredProps, serverEnvPath)
         }
 
-        return serverEnvPath;
+        return serverEnvPath
     }
 
-    protected String setServerEnvPathHelperForAppendServerEnv(File envFile, Properties configuredProps, String serverEnvPath) {
+    protected String setServerEnvPathHelperForAppendServerEnv(File envFile, Map<String, String> configuredProps, String serverEnvPath) {
         boolean configDirEnvMerged = serverEnvPath != null;
         boolean serverEnvFileMerged = server.serverEnvFile != null && server.serverEnvFile.exists()
         boolean inlineEnvPropsMerged = !configuredProps.isEmpty()
@@ -946,11 +949,11 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
         return updatedServerEnvPath.toString();
     }
 
-    protected String setServerEnvHelper(File envFile, String serverEnvPath, Properties configuredProps) {
+    protected String setServerEnvHelper(File envFile, String serverEnvPath, Map<String, String> configuredProps) {
         if ((server.env != null && !server.env.isEmpty()) || !envProjectProps.isEmpty()) {
-            Properties envPropsToWrite = configuredProps
+            Map<String, String> envPropsToWrite = configuredProps
             if (serverEnvPath == null && server.serverEnvFile == null) {
-                // Do a special case merge but ONLY if there is no server.env file present in configDirectory or specified with serverEnvFile
+                // Special-case: no configDir or serverEnvFile — preserve auto-generated special props
                 envPropsToWrite = mergeSpecialPropsFromInstallServerEnvIfAbsent(envFile, configuredProps)
                 logger.warn("The default " + envFile.getCanonicalPath() + " file is overwritten by inlined configuration.")
             } else if (serverEnvPath != null) {
@@ -967,76 +970,58 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
         }
     }
 
-    /**
-     * Merges envProps with special properties found in envFile, the install (target) server.env.  We return a clone/copy of
-     * envProps, to which any of a list of special properties found in envFile have been added.  We give precedence
-     * to properties already in envProps.
-     */
-    protected Properties mergeSpecialPropsFromInstallServerEnvIfAbsent(File envFile, Properties envProps) throws IOException {
-
+    // Merges envProps with special auto-generated properties (keystore_password, ltpa_keys_password)
+    // from the install server.env, without overriding existing values in envProps.
+    protected Map<String, String> mergeSpecialPropsFromInstallServerEnvIfAbsent(File envFile, Map<String, String> envProps) throws IOException {
         String[] specialProps = ["keystore_password", "ltpa_keys_password"]
-
-        // Make a copy to avoid side effects
-        Properties mergedProps = new Properties()
-        mergedProps.putAll(envProps)
-
-        // From install (target) dir
-        Properties serverEnvProps = convertServerEnvToProperties(envFile)
-
+        Map<String, String> mergedProps = new LinkedHashMap<>(envProps)
+        Map<String, String> serverEnvProps = convertServerEnvToProperties(envFile)
         for (String propertyName : specialProps) {
             if (serverEnvProps.containsKey(propertyName)) {
                 mergedProps.putIfAbsent(propertyName, serverEnvProps.get(propertyName))
             }
         }
-
         return mergedProps
     }
 
 
-    protected Properties convertServerEnvToProperties(File serverEnv) {
-        Properties serverEnvProps = new Properties();
-
-        if ((serverEnv == null) || !serverEnv.exists()) {
-            return serverEnvProps;
+    // Parses server.env into a LinkedHashMap to preserve insertion order.
+    // Order matters when expansion variables reference earlier entries (e.g. WIN_JAVA_HOME=!WIN_HOME!\java).
+    protected Map<String, String> convertServerEnvToProperties(File serverEnv) {
+        Map<String, String> props = new LinkedHashMap<>()
+        if (serverEnv == null || !serverEnv.exists()) {
+            return props
         }
-
-        BufferedReader bf = new BufferedReader(new FileReader(serverEnv));
-        String line;
-        while((line = bf.readLine()) != null) {
-            
-            //Skip comments
-            if(!line.startsWith("#")) {
-                String[] keyValue = line.split("=", 2);
-                if (keyValue.length == 2) {
-                    String key = keyValue[0];
-                    String value = keyValue[1];
-
-                    serverEnvProps.put(key,value);
+        serverEnv.withReader('UTF-8') { reader ->
+            String line
+            while ((line = reader.readLine()) != null) {
+                if (!line.startsWith('#')) {
+                    String[] kv = line.split('=', 2)
+                    if (kv.length == 2) {
+                        props.put(kv[0], kv[1])
+                    }
                 }
             }
         }
-
-        return serverEnvProps;
+        return props
     }
 
-    protected Properties combineServerEnvProperties(Properties properties, Properties projectProperties) {
-        Properties combinedEnvProperties = new Properties()
-        if (! projectProperties.isEmpty()) {
-            if (properties.isEmpty()) {
-                combinedEnvProperties.putAll(projectProperties)
-            } else {
-                // add the project properties (which come from the command line) last so that they take precedence over the properties specified in build.gradle
-                combinedEnvProperties.putAll(properties)
-                combinedEnvProperties.putAll(projectProperties)
-            }
-        } else {
-            combinedEnvProperties.putAll(properties)
-        }
-
-        return combinedEnvProperties;
+    // Merges two maps. projectProperties take precedence and are added last.
+    // LinkedHashMap preserves order so expansion variables remain resolvable at server start.
+    protected Map<String, String> combineServerEnvProperties(Map<String, String> properties, Map<String, String> projectProperties) {
+        Map<String, String> combined = new LinkedHashMap<>()
+        combined.putAll(properties)
+        combined.putAll(projectProperties)
+        return combined
     }
-    
-    protected void writeServerEnvProperties(File file, Properties combinedEnvProperties) throws IOException {
+
+    protected void writeServerEnvProperties(File file, Map<String, String> combinedEnvProperties) throws IOException {
+        writeServerEnvProperties(file, combinedEnvProperties, combinedEnvProperties.keySet())
+    }
+
+    // Writes server.env. Backslash normalisation (\ -> /) is applied only to keys in normaliseKeys
+    // (Gradle-inline props). File-sourced values — Windows paths, !VAR! expansion refs — are written verbatim.
+    protected void writeServerEnvProperties(File file, Map<String, String> combinedEnvProperties, Set<Object> normaliseKeys) throws IOException {
         makeParentDirectory(file)
         PrintWriter writer = null
         try {
@@ -1045,7 +1030,12 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
             for (Map.Entry<String, String> entry : combinedEnvProperties.entrySet()) {
                 writer.print(entry.getKey())
                 writer.print("=")
-                writer.println((entry.getValue() != null) ? entry.getValue().toString().replace("\\", "/") : "")
+                String value = entry.getValue() != null ? entry.getValue().toString() : null
+                if (value != null) {
+                    writer.println(normaliseKeys.contains(entry.getKey()) ? value.replace("\\", "/") : value)
+                } else {
+                    writer.println("")
+                }
             }
         } finally {
             if (writer != null) {
@@ -1349,7 +1339,7 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
      */
     @Internal
     protected boolean isJavaHomeSetForEnvProperties() {
-        Properties serverEnvProjectProps = combineServerEnvProperties(server.env, envProjectProps)
+        Map<String, String> serverEnvProjectProps = combineServerEnvProperties(server.env ?: [:], envProjectProps)
         if (serverEnvProjectProps.containsKey("JAVA_HOME")) {
             logger.warn("CWWKM4101W: The toolchain JDK configuration for task " + this.path + " is not honored because the JAVA_HOME property is specified in server.env properties.")
             return true

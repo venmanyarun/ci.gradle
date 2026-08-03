@@ -22,6 +22,7 @@ import io.openliberty.tools.gradle.extensions.LibertyExtension
 import io.openliberty.tools.gradle.extensions.ServerExtension
 import io.openliberty.tools.gradle.extensions.arquillian.ArquillianExtension
 import io.openliberty.tools.gradle.utils.GradleUtils
+import io.openliberty.tools.gradle.utils.ServerEnvUtil
 
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ProjectDependency
@@ -156,13 +157,10 @@ class Liberty implements Plugin<Project> {
 
     public static void checkEtcServerEnvProperties(Project project) {
         if (project.liberty.outputDir == null) {
-            Properties envProperties = new Properties()
-            //check etc/server.env and set liberty.outputDir
+            // Read WLP_OUTPUT_DIR without mutating the file. Normalise backslashes since it is a directory path.
             File serverEnvFile = new File(Liberty.getInstallDir(project), 'etc/server.env')
             if (serverEnvFile.exists()) {
-                serverEnvFile.text = serverEnvFile.text.replace("\\", "/")
-                envProperties.load(new FileInputStream(serverEnvFile))
-                Liberty.setLibertyOutputDir(project, (String) envProperties.get("WLP_OUTPUT_DIR"))
+                Liberty.setLibertyOutputDir(project, ServerEnvUtil.readEnvValue(serverEnvFile, 'WLP_OUTPUT_DIR')?.replace("\\", "/"))
             }
         }
     }

@@ -4,8 +4,9 @@ import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.BufferedReader
+import java.io.FileReader
+import java.util.ArrayList
 
 
 import org.junit.BeforeClass
@@ -93,7 +94,7 @@ class TestAppendServerEnvWithProps extends AbstractIntegrationTest {
         // The contents of the default server.env can change over time.
         // After 20.0.0.3, for example, the WLP_SKIP_MAXPERMSIZE was removed.
         // Just confirm the keystore_password is present to prove the default server.env was merged with the plugin config.
-        Assert.assertTrue("Number of env properties should be >= 7, but is "+serverEnvContents.size(),  	serverEnvContents.size() >= 7)
+        Assert.assertTrue("Number of env properties should be >= 11, but is "+serverEnvContents.size(),  	serverEnvContents.size() >= 11)
         Assert.assertTrue("keystore_password mapping found", serverEnvContents.containsKey("keystore_password"))
         Assert.assertTrue("ConfigDir=TEST mapping found", serverEnvContents.get("ConfigDir").equals("TEST"))
         Assert.assertTrue("CONFIG_SERVER_ENV=TEST mapping found", serverEnvContents.get("CONFIG_SERVER_ENV").equals("TEST"))
@@ -102,6 +103,111 @@ class TestAppendServerEnvWithProps extends AbstractIntegrationTest {
         Assert.assertTrue("TEST_PROP_2=white", serverEnvContents.get("TEST_PROP_2").equals("white"))
         Assert.assertTrue("TEST_PROP_1=red", serverEnvContents.get("TEST_PROP_1").equals("red"))
 
+    }
+
+    /**
+     * Regression test: mergeServerEnv=true must not corrupt file-system paths, delayed-expansion
+     * variable references, or any arbitrary value containing a backslash that is written verbatim
+     * in a user's server.env file.
+     *
+     * Entries added to src/resources/server.env:
+     *   WIN_HOME=C:\myfolder\folder2        (Windows backslash path)
+     *   WIN_JAVA_HOME=!WIN_HOME!\java       (delayed-expansion variable reference)
+     *   UNIX_HOME=/usr/local/myapp          (Unix forward-slash path)
+     *   TEST_BACKSLASH_VALUE=abc\`;xyz      (arbitrary mid-string backslash)
+     */
+    @Test
+    public void check_windows_path_and_expansion_variables_preserved() {
+        File serverEnv = new File("build/testBuilds/test-append-server-env-with-props/build/wlp/usr/servers/LibertyProjectServer/server.env")
+        Assert.assertTrue(serverEnv.getCanonicalPath() + " doesn't exist", serverEnv.exists())
+
+        Map<String, String> serverEnvContents = new HashMap<String, String>()
+        BufferedReader br = new BufferedReader(new FileReader(serverEnv))
+        String line
+        while ((line = br.readLine()) != null) {
+            if (!line.startsWith("#") && !line.trim().isEmpty()) {
+                String[] kv = line.split("=", 2)
+                if (kv.length == 2) {
+                    serverEnvContents.put(kv[0], kv[1])
+                }
+            }
+        }
+        br.close()
+
+        String os = System.getProperty("os.name")
+        boolean isWindows = os != null && os.toLowerCase().startsWith("windows")
+
+        // All four keys must always be present in the merged file regardless of platform.
+        Assert.assertTrue("WIN_HOME key should be present in merged server.env",
+                serverEnvContents.containsKey("WIN_HOME"))
+        Assert.assertTrue("WIN_JAVA_HOME key should be present in merged server.env",
+                serverEnvContents.containsKey("WIN_JAVA_HOME"))
+        Assert.assertTrue("UNIX_HOME key should be present in merged server.env",
+                serverEnvContents.containsKey("UNIX_HOME"))
+        Assert.assertTrue("TEST_BACKSLASH_VALUE key should be present in merged server.env",
+                serverEnvContents.containsKey("TEST_BACKSLASH_VALUE"))
+
+        if (isWindows) {
+            // On Windows: backslash path must not be converted to forward-slashes.
+            Assert.assertEquals(
+                    "WIN_HOME value must preserve backslashes on Windows (not converted to forward-slashes)",
+                    "C:\\myfolder\\folder2", serverEnvContents.get("WIN_HOME"))
+            // Delayed-expansion variable reference (!VAR!\subdir) must keep its backslash.
+            Assert.assertEquals(
+                    "WIN_JAVA_HOME value must preserve backslash in !VAR! expansion reference on Windows",
+                    "!WIN_HOME!\\java", serverEnvContents.get("WIN_JAVA_HOME"))
+        } else {
+            // On Linux/Mac: verify backslashes were not mangled to forward-slashes.
+            Assert.assertFalse(
+                    "WIN_HOME value must not have backslashes replaced with forward-slashes "+serverEnvContents.get("WIN_HOME"),
+                    serverEnvContents.get("WIN_HOME").contains("/myfolder/folder2"))
+            Assert.assertFalse(
+                    "WIN_JAVA_HOME value must not have its backslash replaced with a forward-slash",
+                    serverEnvContents.get("WIN_JAVA_HOME").contains("!WIN_HOME!/java"))
+        }
+
+        // Forward-slash path must pass through unchanged on all platforms.
+        Assert.assertEquals(
+                "UNIX_HOME value must be preserved as-is on all platforms",
+                "/usr/local/myapp", serverEnvContents.get("UNIX_HOME"))
+
+        // Arbitrary mid-string backslash must be preserved verbatim on all platforms.
+        Assert.assertEquals(
+                "TEST_BACKSLASH_VALUE must preserve the mid-string backslash verbatim",
+                "abc\\`;xyz", serverEnvContents.get("TEST_BACKSLASH_VALUE"))
+    }
+
+    /**
+     * Order test: when expansion variables reference earlier entries (e.g. WIN_JAVA_HOME=!WIN_HOME!\java),
+     * the referenced variable (WIN_HOME) must appear before the referencing one (WIN_JAVA_HOME) in the
+     * merged server.env so Liberty can resolve the reference at server start.
+     */
+    @Test
+    public void check_expansion_variable_order_preserved() {
+        File serverEnv = new File("build/testBuilds/test-append-server-env-with-props/build/wlp/usr/servers/LibertyProjectServer/server.env")
+        Assert.assertTrue(serverEnv.getCanonicalPath() + " doesn't exist", serverEnv.exists())
+
+        List<String> keys = new ArrayList<String>()
+        BufferedReader br = new BufferedReader(new FileReader(serverEnv))
+        String line
+        while ((line = br.readLine()) != null) {
+            if (!line.startsWith("#") && !line.trim().isEmpty()) {
+                String[] kv = line.split("=", 2)
+                if (kv.length == 2) {
+                    keys.add(kv[0])
+                }
+            }
+        }
+        br.close()
+
+        int winHomeIndex = keys.indexOf("WIN_HOME")
+        int winJavaHomeIndex = keys.indexOf("WIN_JAVA_HOME")
+
+        Assert.assertTrue("WIN_HOME must be present in merged server.env", winHomeIndex >= 0)
+        Assert.assertTrue("WIN_JAVA_HOME must be present in merged server.env", winJavaHomeIndex >= 0)
+        Assert.assertTrue(
+                "WIN_HOME (pos " + winHomeIndex + ") must appear before WIN_JAVA_HOME (pos " + winJavaHomeIndex + ") so the !WIN_HOME! expansion reference can be resolved",
+                winHomeIndex < winJavaHomeIndex)
     }
 
 }

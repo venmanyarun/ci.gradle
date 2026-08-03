@@ -15,6 +15,8 @@
  */
 package io.openliberty.tools.gradle
 
+import io.openliberty.tools.gradle.utils.ServerEnvUtil
+
 import io.openliberty.tools.gradle.extensions.ServerExtension
 import io.openliberty.tools.gradle.tasks.AbstractServerTask
 import io.openliberty.tools.gradle.tasks.AbstractLibertyTask
@@ -147,18 +149,13 @@ public class LibertyTasks {
 
     public void checkServerEnvProperties(ServerExtension server) {
         if (server.outputDir == null) {
-            Properties envProperties = new Properties()
-            //check server.env files and set liberty.server.outputDir
+            // Read WLP_OUTPUT_DIR without mutating the file. Normalise backslashes since it is a directory path.
             if (server.serverEnvFile != null && server.serverEnvFile.exists()) {
-                server.serverEnvFile.text = server.serverEnvFile.text.replace("\\", "/")
-                envProperties.load(new FileInputStream(server.serverEnvFile))
-                setServerOutputDir(server, (String) envProperties.get("WLP_OUTPUT_DIR"))
+                setServerOutputDir(server, ServerEnvUtil.readEnvValue(server.serverEnvFile, 'WLP_OUTPUT_DIR')?.replace("\\", "/"))
             } else if (server.configDirectory != null) {
                 File serverEnvFile = new File(server.configDirectory, 'server.env')
                 if (serverEnvFile != null && serverEnvFile.exists()) {
-                    serverEnvFile.text = serverEnvFile.text.replace("\\", "/")
-                    envProperties.load(new FileInputStream(serverEnvFile))
-                    setServerOutputDir(server, (String) envProperties.get("WLP_OUTPUT_DIR"))
+                    setServerOutputDir(server, ServerEnvUtil.readEnvValue(serverEnvFile, 'WLP_OUTPUT_DIR')?.replace("\\", "/"))
                 }
             }
         }
