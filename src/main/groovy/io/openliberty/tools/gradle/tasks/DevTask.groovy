@@ -1492,11 +1492,9 @@ class DevTask extends AbstractFeatureTask {
     protected List<ProjectModule> getProjectModules() {
         List<ProjectModule> upstreamProjects = new ArrayList<ProjectModule>();
         for (Project dependencyProject : DevTaskHelper.getAllUpstreamProjects(project)) {
-            // In Maven , there is a step to set compiler options for upstream project
-            // Gradle does not need to manually inject compiler options because
-            // we are directly calling compileJava task, which internally takes the compiler options
-            // from task definition or command line arguments
-            JavaCompilerOptions upstreamCompilerOptions = new JavaCompilerOptions();
+            // Read compiler options (annotation processor path, compiler args) from the upstream project's
+            // compileJava task so they are available for any direct javac recompilation paths.
+            JavaCompilerOptions upstreamCompilerOptions = getGradleCompilerOptions(dependencyProject)
             SourceSetContainer depSourceSets = dependencyProject.extensions.findByType(SourceSetContainer)
             SourceSet mainSourceSet = depSourceSets?.findByName('main')
             SourceSet testSourceSet = depSourceSets?.findByName('test')
@@ -1708,6 +1706,55 @@ class DevTask extends AbstractFeatureTask {
             rootCause = rootCause.getCause();
         }
         return null;
+    }
+
+    /**
+     * Build a JavaCompilerOptions from the given Gradle project's compileJava task settings.
+     *
+     * @param project the Gradle project to read compiler options from
+     * @return populated JavaCompilerOptions, never null
+     */
+    protected JavaCompilerOptions getGradleCompilerOptions(Project project) {
+        JavaCompilerOptions options = new JavaCompilerOptions()
+        try {
+            def compileTask = project.tasks.findByName('compileJava')
+            if (compileTask == null) return options
+
+            def annotationProcessorPath = compileTask.options.annotationProcessorPath
+            if (annotationProcessorPath != null) {
+                try {
+                    Set annotationProcessorFiles = annotationProcessorPath.files
+                    if (!annotationProcessorFiles.isEmpty()) {
+                        String pathString = annotationProcessorFiles.collect { it.absolutePath }.join(File.pathSeparator)
+                        options.setAnnotationProcessorPath(pathString)
+                        logger.lifecycle("Dev mode annotation processor path (compileJava.options): " + pathString)
+                    }
+                } catch (Exception e) {
+                    logger.debug("Could not resolve annotationProcessorPath on compileJava for project '" + project.name + "': " + e.getMessage())
+                }
+            } else {
+                def annotationProcessorConfig = project.configurations.findByName('annotationProcessor')
+                if (annotationProcessorConfig != null) {
+                    Set annotationProcessorFiles = annotationProcessorConfig.files
+                    if (!annotationProcessorFiles.isEmpty()) {
+                        String pathString = annotationProcessorFiles.collect { it.absolutePath }.join(File.pathSeparator)
+                        options.setAnnotationProcessorPath(pathString)
+                        logger.lifecycle("Dev mode annotation processor path (annotationProcessor config): " + pathString)
+                    }
+                }
+            }
+
+            List<String> arguments = compileTask.options.compilerArgs
+            if (arguments != null && !arguments.isEmpty()) {
+                options.setCompilerArgs(new ArrayList<>(arguments))
+                logger.info("Dev mode compiler arguments: " + arguments)
+            }
+        } catch (Exception e) {
+            logger.warn("Could not read compiler options for project '" + project.name
+                    + "' (" + e.getClass().getSimpleName() + "): " + e.getMessage())
+            logger.debug("Compiler options resolution failure for project '" + project.name + "'", e)
+        }
+        return options
     }
 
 }
