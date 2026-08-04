@@ -26,7 +26,7 @@ public class ServerEnvUtil {
      * The value is returned as-is; callers are responsible for any normalisation needed.
      */
     public static String readEnvValue(File serverEnvFile, String key) {
-        serverEnvFile.withReader('UTF-8') { reader ->
+        return serverEnvFile.withReader('UTF-8') { reader ->
             String line
             while ((line = reader.readLine()) != null) {
                 if (!line.startsWith('#')) {
@@ -36,7 +36,7 @@ public class ServerEnvUtil {
                     }
                 }
             }
+            return null
         }
-        return null
     }
 }
