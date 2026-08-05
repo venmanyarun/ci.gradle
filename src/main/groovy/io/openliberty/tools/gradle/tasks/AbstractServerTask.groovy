@@ -1021,7 +1021,8 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
             for (Map.Entry<String, String> entry : combinedEnvProperties.entrySet()) {
                 writer.print(entry.getKey())
                 writer.print("=")
-                writer.println(entry.getValue() != null ? entry.getValue().toString() : "")
+                String value = entry.getValue() != null ? entry.getValue().toString() : ""
+                writer.println(server.convertServerEnvPathSeparator ? value.replace("\\", "/") : value)
             }
         } finally {
             if (writer != null) {
