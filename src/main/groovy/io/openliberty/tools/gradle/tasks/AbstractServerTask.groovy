@@ -244,8 +244,7 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
             Properties defaultServerEnvProps = convertServerEnvToProperties(defaultEnvFile)
 
             Properties mergedProperties = combineServerEnvProperties(defaultServerEnvProps, configDirServerEnvProps)
-            // backslash-to-forward-slash normalisation should be applied to any value.
-            writeServerEnvProperties(defaultEnvFile, mergedProperties, Collections.emptySet())
+            writeServerEnvProperties(defaultEnvFile, mergedProperties)
 
         }
         else {
@@ -910,9 +909,7 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
         }
 
         if (!mergedProperties.isEmpty()) {
-            // Apply backslash normalisation only to Gradle-inline keys; file-sourced values
-            // (e.g. Windows paths, !VAR! expansion refs) must be written verbatim.
-            writeServerEnvProperties(envFile, mergedProperties, configuredProps.keySet())
+            writeServerEnvProperties(envFile, mergedProperties)
             return setServerEnvPathHelperForAppendServerEnv(envFile, configuredProps, serverEnvPath)
         }
 
@@ -1016,12 +1013,6 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
     }
 
     protected void writeServerEnvProperties(File file, Map<String, String> combinedEnvProperties) throws IOException {
-        writeServerEnvProperties(file, combinedEnvProperties, combinedEnvProperties.keySet())
-    }
-
-    // Writes server.env. Backslash normalisation (\ -> /) is applied only to keys in normaliseKeys
-    // (Gradle-inline props). File-sourced values — Windows paths, !VAR! expansion refs — are written verbatim.
-    protected void writeServerEnvProperties(File file, Map<String, String> combinedEnvProperties, Set<Object> normaliseKeys) throws IOException {
         makeParentDirectory(file)
         PrintWriter writer = null
         try {
@@ -1030,12 +1021,7 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
             for (Map.Entry<String, String> entry : combinedEnvProperties.entrySet()) {
                 writer.print(entry.getKey())
                 writer.print("=")
-                String value = entry.getValue() != null ? entry.getValue().toString() : null
-                if (value != null) {
-                    writer.println(normaliseKeys.contains(entry.getKey()) ? value.replace("\\", "/") : value)
-                } else {
-                    writer.println("")
-                }
+                writer.println(entry.getValue() != null ? entry.getValue().toString() : "")
             }
         } finally {
             if (writer != null) {

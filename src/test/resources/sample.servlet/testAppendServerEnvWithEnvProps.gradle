@@ -51,7 +51,7 @@ liberty {
         mergeServerEnv = true
         serverEnvFile = file("src/resources/server.env")
         configDirectory = file('src/resources/config')
-        env = ['TEST_PROP_2':'white', 'CONFIG_SERVER_ENV_PROPS':'TEST']
+        env = ['TEST_PROP_2':'white', 'CONFIG_SERVER_ENV_PROPS':'TEST', 'MAVEN_WIN_PATH':'C:\\Semeru\\jdk']
     }
 }
 
