@@ -157,10 +157,12 @@ class Liberty implements Plugin<Project> {
 
     public static void checkEtcServerEnvProperties(Project project) {
         if (project.liberty.outputDir == null) {
-            // Read WLP_OUTPUT_DIR without mutating the file. Normalise backslashes since it is a directory path.
+            // Read WLP_OUTPUT_DIR without mutating the file.
+            // Backslashes are converted to forward slashes because this value is used as a Java File path,
+            // which requires forward slashes regardless of operating system.
             File serverEnvFile = new File(Liberty.getInstallDir(project), 'etc/server.env')
             if (serverEnvFile.exists()) {
-                Liberty.setLibertyOutputDir(project, ServerEnvUtil.readEnvValue(serverEnvFile, 'WLP_OUTPUT_DIR')?.replace("\\", "/"))
+                Liberty.setLibertyOutputDir(project, ServerEnvUtil.readEnvValueAsPath(serverEnvFile, 'WLP_OUTPUT_DIR'))
             }
         }
     }

@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2017, 2025.
+ * (C) Copyright IBM Corporation 2017, 2026.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,7 +66,8 @@ class ServerExtension {
     boolean mergeServerEnv = false
 
     // When true, backslashes in server.env values are converted to forward-slashes before
-    // writing (legacy behaviour). Default false — values are written verbatim.
+    // writing the merged server.env file (legacy behaviour). Default false — values are written verbatim.
+    // Only takes effect when mergeServerEnv is true.
     boolean convertServerEnvPathSeparator = false
 
     // Inline bootstrap `Properties` that are written to the bootstrap.properties file in the server directory. 

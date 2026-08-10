@@ -23,20 +23,33 @@ public class ServerEnvUtil {
     /**
      * Reads a single key's value from a server.env file by parsing key=value lines directly.
      * Does not mutate the file. Returns null if the key is not found.
+     * When a key appears more than once, the last occurrence is returned (matching server behaviour).
      * The value is returned as-is; callers are responsible for any normalisation needed.
      */
     public static String readEnvValue(File serverEnvFile, String key) {
-        return serverEnvFile.withReader('UTF-8') { reader ->
+        String result = null
+        serverEnvFile.withReader('UTF-8') { reader ->
             String line
             while ((line = reader.readLine()) != null) {
                 if (!line.startsWith('#')) {
                     String[] kv = line.split('=', 2)
                     if (kv.length == 2 && kv[0] == key) {
-                        return kv[1]
+                        result = kv[1]
                     }
                 }
             }
-            return null
         }
+        return result
+    }
+
+    /**
+     * Reads a single key's value from a server.env file and normalises backslashes to forward slashes.
+     * This is suitable for directory-path values (e.g. WLP_OUTPUT_DIR) which Liberty treats as Java
+     * File paths and therefore requires forward slashes on all platforms.
+     * Returns null if the key is not found.
+     */
+    public static String readEnvValueAsPath(File serverEnvFile, String key) {
+        String value = readEnvValue(serverEnvFile, key)
+        return value?.replace("\\", "/")
     }
 }

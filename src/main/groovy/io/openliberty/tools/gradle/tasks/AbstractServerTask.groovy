@@ -873,8 +873,9 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
 
     protected String handleServerEnvFileAndProperties(String serverEnvPath, String serverDirectory) {
         File envFile = new File(serverDirectory, "server.env")
-        // server.env and envProjectProps are Gradle-inline props (build.gradle / command line)
-        Map<String, String> configuredProps = combineServerEnvProperties(server.env ?: [:], envProjectProps)
+        // Combine server.env inline properties (build.gradle env={}) with envProjectProps
+        // (command-line -Pliberty.server.env.* project properties).
+        Map<String, String> configuredProps = combineServerEnvProperties(server.env, envProjectProps)
 
         if (server.mergeServerEnv) {
             return setServerEnvWithAppendServerEnvHelper(envFile, serverEnvPath, configuredProps)
@@ -894,6 +895,7 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
                 logger.debug("The serverEnvFile "+ server.serverEnvFile.getCanonicalPath() + " is merged with the " + getServerDir(project).getCanonicalPath() + " file.")
             }
             Map<String, String> configuredServerEnvProps = convertServerEnvToProperties(server.serverEnvFile)
+            //Merge with either default server.env or with what has already been merged if configDirectory server.env was found
             mergedProperties = combineServerEnvProperties(serverEnvProps, configuredServerEnvProps)
         }
 
@@ -1326,7 +1328,8 @@ abstract class AbstractServerTask extends AbstractLibertyTask {
      */
     @Internal
     protected boolean isJavaHomeSetForEnvProperties() {
-        Map<String, String> serverEnvProjectProps = combineServerEnvProperties(server.env ?: [:], envProjectProps)
+        // Combine inline env properties and command-line project properties to check for JAVA_HOME.
+        Map<String, String> serverEnvProjectProps = combineServerEnvProperties(server.env, envProjectProps)
         if (serverEnvProjectProps.containsKey("JAVA_HOME")) {
             logger.warn("CWWKM4101W: The toolchain JDK configuration for task " + this.path + " is not honored because the JAVA_HOME property is specified in server.env properties.")
             return true
