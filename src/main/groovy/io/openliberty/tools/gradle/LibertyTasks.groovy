@@ -1,5 +1,5 @@
 /*
- * (C) Copyright IBM Corporation 2018, 2023.
+ * (C) Copyright IBM Corporation 2018, 2026.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 package io.openliberty.tools.gradle
+
+import io.openliberty.tools.gradle.utils.ServerEnvUtil
 
 import io.openliberty.tools.gradle.extensions.ServerExtension
 import io.openliberty.tools.gradle.tasks.AbstractServerTask
@@ -147,18 +149,15 @@ public class LibertyTasks {
 
     public void checkServerEnvProperties(ServerExtension server) {
         if (server.outputDir == null) {
-            Properties envProperties = new Properties()
-            //check server.env files and set liberty.server.outputDir
+            // Read WLP_OUTPUT_DIR without mutating the file.
+            // Backslashes are converted to forward slashes because this value is used as a Java File path,
+            // which requires forward slashes regardless of operating system.
             if (server.serverEnvFile != null && server.serverEnvFile.exists()) {
-                server.serverEnvFile.text = server.serverEnvFile.text.replace("\\", "/")
-                envProperties.load(new FileInputStream(server.serverEnvFile))
-                setServerOutputDir(server, (String) envProperties.get("WLP_OUTPUT_DIR"))
+                setServerOutputDir(server, ServerEnvUtil.readEnvValueAsPath(server.serverEnvFile, 'WLP_OUTPUT_DIR'))
             } else if (server.configDirectory != null) {
                 File serverEnvFile = new File(server.configDirectory, 'server.env')
                 if (serverEnvFile != null && serverEnvFile.exists()) {
-                    serverEnvFile.text = serverEnvFile.text.replace("\\", "/")
-                    envProperties.load(new FileInputStream(serverEnvFile))
-                    setServerOutputDir(server, (String) envProperties.get("WLP_OUTPUT_DIR"))
+                    setServerOutputDir(server, ServerEnvUtil.readEnvValueAsPath(serverEnvFile, 'WLP_OUTPUT_DIR'))
                 }
             }
         }

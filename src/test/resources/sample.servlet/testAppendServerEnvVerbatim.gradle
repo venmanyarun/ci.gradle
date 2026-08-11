@@ -1,6 +1,7 @@
 /*
-	This test checks whether the application was successfully installed without the version number in the package
-	when deploy is called and stripVersion is set to true.
+	This test verifies that when convertServerEnvPathSeparator is not set (defaults to false),
+	backslash characters and Windows delayed-expansion variables in server.env values are
+	written verbatim into the merged server.env without any path-separator conversion.
 */
 group = 'liberty.gradle'
 version = '1'
@@ -49,10 +50,10 @@ liberty {
             copyLibsDirectory = file("${project.getLayout().getBuildDirectory().getAsFile().get()}/libs")
         }
         mergeServerEnv = true
-        convertServerEnvPathSeparator = true
+        // convertServerEnvPathSeparator not set — defaults to false (verbatim mode)
         serverEnvFile = file("src/resources/server.env")
         configDirectory = file('src/resources/config')
-        env = ['TEST_PROP_2':'white', 'CONFIG_SERVER_ENV_PROPS':'TEST']
+        env = ['TEST_PROP_2':'white', 'CONFIG_SERVER_ENV_PROPS':'TEST', 'GRADLE_WIN_PATH':'C:\\Semeru\\jdk']
     }
 }
 
