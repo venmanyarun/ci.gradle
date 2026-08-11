@@ -17,7 +17,7 @@ tasks.withType(AbstractPublishToMaven).configureEach {
 }
 
 group = 'io.openliberty.tools'
-version = '4.0.1'
+version = '4.0.2-SNAPSHOT'
 base {
     archivesName='liberty-gradle-plugin'
 }
