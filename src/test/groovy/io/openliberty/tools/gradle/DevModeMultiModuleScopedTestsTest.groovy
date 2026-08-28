@@ -104,9 +104,7 @@ class DevModeMultiModuleScopedTestsTest extends BaseDevTest {
         }
         System.out.println("Running command: " + command)
 
-        ProcessBuilder builder = new ProcessBuilder()
-        builder.directory(buildDir)
-        builder.command("bash", "-c", command)
+        ProcessBuilder builder = buildProcess(command)
         builder.redirectOutput(logFile)
         builder.redirectError(errFile)
         process = builder.start()
