@@ -98,13 +98,23 @@ class DevModeMultiModuleScopedTestsTest extends BaseDevTest {
             gradlew = new File("gradlew")
         }
 
-        String command = gradlew.getAbsolutePath() + " --warning-mode none " + taskPath
+        // Build the argument list directly (no shell, no quoting) so that paths with
+        // spaces work on all platforms.  --project-dir pins Gradle to the test project
+        // root instead of walking up and finding the ci.gradle repo settings.gradle.
+        List<String> args = new ArrayList<>()
+        args.add(gradlew.getAbsolutePath())
+        args.add("--project-dir")
+        args.add(buildDir.getAbsolutePath())
+        args.add("--warning-mode")
+        args.add("none")
+        args.add(taskPath)
         if (extraFlags != null && !extraFlags.isEmpty()) {
-            command += " " + extraFlags
+            args.addAll(extraFlags.trim().split("\\s+").toList())
         }
-        System.out.println("Running command: " + command)
+        System.out.println("Running command: " + args.join(" "))
 
-        ProcessBuilder builder = buildProcess(command)
+        ProcessBuilder builder = new ProcessBuilder(args)
+        builder.directory(buildDir)
         builder.redirectOutput(logFile)
         builder.redirectError(errFile)
         process = builder.start()
