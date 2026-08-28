@@ -1,0 +1,21 @@
+// Root build file for the independent-Liberty-submodules test.
+// None of the three submodules depend on each other; they are completely
+// independent services that each have their own Liberty server configured.
+// This reproduces the scenario from GitHub issue #1098:
+//   https://github.com/OpenLiberty/ci.gradle/issues/1098
+//
+// Expected behaviour after the fix:
+//   gradle :moduleA:libertyDev  (press Enter)
+//     -> only :moduleA:cleanTest :moduleA:test must run
+//     -> :moduleB:test and :moduleC:test must NOT run
+allprojects {
+    group = 'io.openliberty.guides'
+    version = '1.0-SNAPSHOT'
+}
+
+subprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}

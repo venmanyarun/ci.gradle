@@ -84,6 +84,11 @@ public class DevTaskHelper {
 
         for (Iterator<Configuration> iter = project.getConfigurations().iterator(); iter.hasNext();) {
             Configuration element = iter.next();
+            // Skip test-scoped configurations so test-only project deps are not treated as
+            // upstream compile-time modules (fixes #1098).
+            if (element.name.toLowerCase().startsWith("test")) {
+                continue;
+            }
             if (element.canBeResolved) {
                 Dependency[] deployDeps = element.getAllDependencies().toArray()
                 for (Dependency dependency1 : deployDeps) {

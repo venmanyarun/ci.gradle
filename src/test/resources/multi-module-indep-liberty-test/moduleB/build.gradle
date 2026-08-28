@@ -1,0 +1,40 @@
+// Module B: another independent Liberty service.
+// This module's server is NOT started when running :moduleA:libertyDev.
+// Its tests must NOT be executed when tests are triggered from module A's dev mode.
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'liberty'
+
+description = 'Module B'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven {
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        }
+    }
+    dependencies {
+        classpath "io.openliberty.tools:liberty-gradle-plugin:$lgpVersion"
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    compileOnly 'javax.servlet:javax.servlet-api:4.0.1'
+    libertyRuntime group: runtimeGroup, name: kernelArtifactId, version: runtimeVersion
+}
+
+liberty {
+    server {
+        name = "moduleBServer"
+        verifyAppStartTimeout = 30
+        looseApplication = true
+    }
+}
