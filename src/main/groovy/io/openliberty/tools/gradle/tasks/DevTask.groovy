@@ -994,8 +994,11 @@ class DevTask extends AbstractFeatureTask {
 
         @Override
         public void runIntegrationTests(File buildFile) throws PluginExecutionException, PluginScenarioException {
-            // Qualify task names with the subproject path so Gradle does not expand them
-            // to all subprojects when running from the root (fixes #1098).
+            // buildFile identifies the subproject whose tests should run. Previously this
+            // parameter was ignored and unqualified task names were always used, causing
+            // Gradle to expand them to all subprojects when run from the root project.
+            // Now the subproject path is resolved from buildFile and task names are
+            // qualified (e.g. ":moduleA:cleanTest") to scope execution to that module only.
             String subprojectPath = resolveSubprojectPath(buildFile);
 
             ProjectConnection gradleConnection = initGradleProjectConnection();
