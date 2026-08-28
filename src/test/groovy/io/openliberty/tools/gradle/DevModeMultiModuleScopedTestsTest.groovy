@@ -31,9 +31,17 @@ import static org.junit.Assert.assertTrue
 /**
  * Regression test for GitHub issue #1098.
  *
- * Three independent Liberty submodules (moduleA, moduleB, moduleC) — none depend on each other.
- * Running :moduleA:libertyDev and pressing Enter must execute only :moduleA:cleanTest and
- * :moduleA:test; :moduleB:test and :moduleC:test must NOT run.
+ * Topology: three independent Liberty submodules (moduleA, moduleB, moduleC) with no
+ * compile-time dependencies between them.
+ *
+ * When modules DO depend on each other (e.g. A → D → E), DevUtil already calls
+ * runIntegrationTests once per upstream module's build file, so our fix correctly
+ * qualifies each call (":moduleD:cleanTest", ":moduleE:cleanTest", etc.) — that
+ * scenario is covered by the existing EAR multi-module dev mode tests.
+ *
+ * This test focuses on the independent case: pressing Enter while running
+ * :moduleA:libertyDev must execute only :moduleA:cleanTest and :moduleA:test.
+ * :moduleB:test and :moduleC:test must NOT run.
  */
 class DevModeMultiModuleScopedTestsTest extends BaseDevTest {
 
@@ -47,7 +55,8 @@ class DevModeMultiModuleScopedTestsTest extends BaseDevTest {
         createTestProject(buildDir, resourceDir, buildFilename)
         new File(buildDir, "build").mkdirs()
         // Use fully-qualified task path; BaseDevTest.runDevMode hardcodes the bare "libertyDev" name.
-        runModuleDevMode(":moduleA:libertyDev", "--skipTests", buildDir)
+        // No --skipTests so that pressing Enter actually triggers runIntegrationTests.
+        runModuleDevMode(":moduleA:libertyDev", null, buildDir)
     }
 
     @Test
@@ -63,14 +72,20 @@ class DevModeMultiModuleScopedTestsTest extends BaseDevTest {
         writer.write("\n")
         writer.flush()
 
-        Thread.sleep(20000)
+        // Wait for the entire test run to finish before checking scope.
+        // "Tests finished." is printed by DevUtil after runIntegrationTests returns,
+        // so once it appears the test invocation is fully complete — any moduleB or
+        // moduleC task output would already be in the log if the bug were present.
+        assertTrue(":moduleA:test must run after pressing Enter",
+                verifyLogMessage(60000, ":moduleA:test"))
+        assertTrue("Tests finished. must appear confirming the run is complete",
+                verifyLogMessage(60000, "Tests finished."))
 
-        assertTrue(":moduleA: must appear in log after pressing Enter",
-                verifyLogMessage(30000, ":moduleA:"))
-        assertFalse(":moduleB:test must NOT run",
-                verifyLogMessage(3000, ":moduleB:test"))
-        assertFalse(":moduleC:test must NOT run",
-                verifyLogMessage(3000, ":moduleC:test"))
+        // Now that the run is done, check scope: only moduleA tasks must have appeared.
+        assertFalse(":moduleB:test must NOT be in log",
+                verifyLogMessage(1000, ":moduleB:test"))
+        assertFalse(":moduleC:test must NOT be in log",
+                verifyLogMessage(1000, ":moduleC:test"))
     }
 
     @AfterClass
