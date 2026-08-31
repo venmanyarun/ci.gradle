@@ -1,0 +1,44 @@
+// Module C: another independent Liberty service.
+// Same rationale as Module B — must not be tested when :moduleA:libertyDev is running.
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'liberty'
+
+description = 'Module C'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven {
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        }
+    }
+    dependencies {
+        classpath "io.openliberty.tools:liberty-gradle-plugin:$lgpVersion"
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.0'
+    compileOnly 'javax.servlet:javax.servlet-api:4.0.1'
+    libertyRuntime group: runtimeGroup, name: kernelArtifactId, version: runtimeVersion
+}
+
+test {
+    useJUnitPlatform()
+}
+
+liberty {
+    server {
+        name = "moduleCServer"
+        verifyAppStartTimeout = 30
+        looseApplication = true
+    }
+}

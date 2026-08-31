@@ -27,6 +27,8 @@ import org.gradle.api.tasks.bundling.War
 import org.gradle.plugins.ear.Ear
 
 import java.nio.file.Path
+import java.util.Arrays
+import java.util.Collections
 
 public class DevTaskHelper {
 
@@ -79,11 +81,24 @@ public class DevTaskHelper {
      * @param project
      * @return
      */
+    // Standard Gradle test-scoped configuration names that should not contribute upstream
+    // project dependencies when discovering compile-time modules for dev mode.
+    private static final Set<String> TEST_CONFIGURATION_NAMES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "testImplementation", "testCompile", "testRuntime", "testRuntimeOnly",
+            "testCompileOnly", "testCompileClasspath", "testRuntimeClasspath",
+            "testAnnotationProcessor"
+    )))
+
     public static Set<Project> getAllUpstreamProjects(Project project) {
         Set<Project> allDependentProjects = new HashSet<>()
 
         for (Iterator<Configuration> iter = project.getConfigurations().iterator(); iter.hasNext();) {
             Configuration element = iter.next();
+            // Skip standard test-scoped configurations so test-only project deps are not
+            // treated as upstream compile-time modules.
+            if (TEST_CONFIGURATION_NAMES.contains(element.name)) {
+                continue;
+            }
             if (element.canBeResolved) {
                 Dependency[] deployDeps = element.getAllDependencies().toArray()
                 for (Dependency dependency1 : deployDeps) {

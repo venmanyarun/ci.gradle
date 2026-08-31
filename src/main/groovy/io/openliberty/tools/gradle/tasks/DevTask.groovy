@@ -994,7 +994,12 @@ class DevTask extends AbstractFeatureTask {
 
         @Override
         public void runIntegrationTests(File buildFile) throws PluginExecutionException, PluginScenarioException {
-            // buildFile parameter is not used, implemented for multi module projects, which is not supported in Gradle
+            // buildFile identifies the subproject whose tests should run. Previously this
+            // parameter was ignored and unqualified task names were always used, causing
+            // Gradle to expand them to all subprojects when run from the root project.
+            // Now the subproject path is resolved from buildFile and task names are
+            // qualified (e.g. ":moduleA:cleanTest") to scope execution to that module only.
+            String subprojectPath = resolveSubprojectPath(buildFile);
 
             ProjectConnection gradleConnection = initGradleProjectConnection();
             BuildLauncher gradleBuildLauncher = gradleConnection.newBuild();
@@ -1027,13 +1032,37 @@ class DevTask extends AbstractFeatureTask {
                 // Force tests to run by calling cleanTest first
                 // otherwise tests may be skipped with an UP-TO-DATE message
                 // https://docs.gradle.org/current/userguide/java_testing.html#sec:forcing_java_tests_to_run
-                runGradleTask(gradleBuildLauncher, 'cleanTest', 'test');
+                String cleanTestTask = subprojectPath != null ? subprojectPath + ":cleanTest" : "cleanTest";
+                String testTask      = subprojectPath != null ? subprojectPath + ":test"      : "test";
+                runGradleTask(gradleBuildLauncher, cleanTestTask, testTask);
             } catch (BuildException e) {
                 // Gradle throws a build exception if tests fail
                 // catch it and do nothing
             } finally {
                 gradleConnection.close();
             }
+        }
+
+        /**
+         * Returns the Gradle project path (e.g. ":moduleA") whose build file matches the given
+         * file, or null if not found or if the match is the root project (path ":").
+         */
+        private String resolveSubprojectPath(File buildFile) {
+            if (buildFile == null) {
+                return null;
+            }
+            try {
+                File canonicalBuildFile = buildFile.getCanonicalFile();
+                for (Project sub : project.getRootProject().getAllprojects()) {
+                    if (sub.getBuildFile().getCanonicalFile().equals(canonicalBuildFile)) {
+                        String path = sub.getPath();
+                        return ":".equals(path) ? null : path;
+                    }
+                }
+            } catch (IOException e) {
+                logger.debug("Could not resolve subproject path for buildFile: " + buildFile, e);
+            }
+            return null;
         }
 
         @Override

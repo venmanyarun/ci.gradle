@@ -1,0 +1,8 @@
+rootProject.name = 'multi-indep'
+include ':moduleA'
+include ':moduleB'
+include ':moduleC'
+
+project(':moduleA').projectDir = "$rootDir/moduleA" as File
+project(':moduleB').projectDir = "$rootDir/moduleB" as File
+project(':moduleC').projectDir = "$rootDir/moduleC" as File
