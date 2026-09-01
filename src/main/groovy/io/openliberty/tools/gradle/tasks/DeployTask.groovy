@@ -290,8 +290,14 @@ class DeployTask extends AbstractServerTask {
                 }
                 validateAppConfig(application, task.getArchiveBaseName().get(), appsDir)
                 logger.info(MessageFormat.format(("Installing application into the {0} folder."), looseConfigFile.getAbsolutePath()))
-                installLooseConfigEar(config, task)
+                installLooseConfigEar(config, task, false)
                 installAndVerify(config, looseConfigFile, application, appsDir)
+                if (project.liberty.dev.container) {
+                    // install another copy that is container specific
+                    config = new LooseConfigData()
+                    installLooseConfigEar(config, task, true)
+                    config.toXmlFile(devcLooseConfigFile)
+                }
                 break
             default:
                 logger.info(MessageFormat.format(("Loose application configuration is not supported for packaging type {0}. The project artifact will be installed as an archive file."),
@@ -420,7 +426,40 @@ class DeployTask extends AbstractServerTask {
         }
     }
 
-    protected void installLooseConfigEar(LooseConfigData config, Task task) throws Exception{
+    protected void installLooseConfigEar(LooseConfigData config, Task task, boolean container) throws Exception{
+        if (container) {
+            try {
+                // Set up the config to replace the absolute path names with ${variable}/target type references.
+                // For EAR projects the content (WAR/JAR sibling modules) lives under the root project dir,
+                // not the EAR subproject dir, so we must use getRootProject().getProjectDir() as the root.
+                config.setProjectRoot(project.getRootProject().getProjectDir().getCanonicalPath());
+                config.setSourceOnDiskName('${'+DevUtil.DEVMODE_PROJECT_ROOT+'}');
+
+                if (server.deploy.copyLibsDirectory == null) { // in container mode, copy dependencies from the build dir to mount in container
+                    // if buildDir is subdirectory of projectDir, use buildDir/libs.  Otherwise use projectDir/build/libs since it must be under the project root in order to make use of DEVMODE_PROJECT_ROOT
+                    if (project.getLayout().getBuildDirectory().getAsFile().get().getCanonicalFile().toPath().startsWith(project.getProjectDir().getCanonicalFile().toPath())) {
+                        server.deploy.copyLibsDirectory = new File(project.getLayout().getBuildDirectory().getAsFile().get(), LIBS);
+                        logger.debug("Setting copyLibsDirectory to " + server.deploy.copyLibsDirectory);
+                    } else {
+                        server.deploy.copyLibsDirectory = new File(project.getProjectDir(), BUILD_LIBS);
+                        // This is temporary until we add variable substitution for the build dir root.
+                        logger.debug("The directory indicated by the buildDir property should be within the Gradle project directory when the container option is specified.  Setting copyLibsDirectory to " + server.deploy.copyLibsDirectory);
+                    }
+                } else {
+                    // test the user defined copyLibsDirectory extension for use in a container
+                    String projectPath = project.getProjectDir().getCanonicalPath();
+                    String copyLibsPath = server.deploy.copyLibsDirectory.getCanonicalPath();
+                    if (!copyLibsPath.startsWith(projectPath)) {
+                        // Flag an error but allow processing to continue in case dependencies, if any, are not actually referenced by the app.
+                        logger.error("The directory indicated by the copyLibsDirectory extension must be within the Gradle project directory when the container option is specified.");
+                    }
+                }
+            } catch (IOException i) {
+                // an IOException here should fail the build
+                throw new GradleException("Could not resolve the canonical path of the Gradle project, build directory, or the directory specified in the copyLibsDirectory extension. Exception message:"+i.getMessage(), i);
+            }
+        }
+
         LooseEarApplication looseEar = new LooseEarApplication(task, config, logger);
         looseEar.addSourceDir();
         looseEar.addApplicationXmlFile();

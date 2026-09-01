@@ -248,7 +248,7 @@ class DevTask extends AbstractFeatureTask {
         }
     }
 
-    private convertParameterToCanonicalFile(String relativeOrAbsolutePath, String parameterName) {
+    protected convertParameterToCanonicalFile(String relativeOrAbsolutePath, String parameterName) {
         File result = null;
         if (relativeOrAbsolutePath != null) {
             File file = new File(relativeOrAbsolutePath);
