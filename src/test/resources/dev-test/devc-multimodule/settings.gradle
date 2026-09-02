@@ -1,0 +1,6 @@
+rootProject.name = 'devc-multimodule'
+include ':modulea'
+include ':moduleb'
+
+project(':modulea').projectDir = "$rootDir/modulea" as File
+project(':moduleb').projectDir = "$rootDir/moduleb" as File
