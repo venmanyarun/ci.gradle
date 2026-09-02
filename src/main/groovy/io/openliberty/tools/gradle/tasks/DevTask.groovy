@@ -256,7 +256,7 @@ class DevTask extends AbstractFeatureTask {
                 if (file.isAbsolute()) {
                     result = file.getCanonicalFile();
                 } else {
-                    result = new File(project.getRootDir(), relativeOrAbsolutePath).getCanonicalFile(); 
+                    result = new File(project.getProjectDir(), relativeOrAbsolutePath).getCanonicalFile();
                 }
             } catch (IOException e) {
                 throw new PluginExecutionException("Could not resolve canonical path of the " + parameterName + " parameter: " + parameterName, e);
@@ -1370,7 +1370,7 @@ class DevTask extends AbstractFeatureTask {
         }
         try {
             this.util = new DevTaskUtil(project.getLayout().getBuildDirectory().getAsFile().get(), serverInstallDir, getUserDir(project, serverInstallDir),
-                serverDirectory, sourceDirectory, testSourceDirectory, configDirectory, project.getRootDir(),
+                serverDirectory, sourceDirectory, testSourceDirectory, configDirectory, project.getProjectDir(),
                 resourceDirs, changeOnDemandTestsAction.booleanValue(), hotTests.booleanValue(), skipTests.booleanValue(), skipInstallFeature.booleanValue(), artifactId, serverStartTimeout.intValue(),
                 verifyAppStartTimeout.intValue(), verifyAppStartTimeout.intValue(), compileWait.doubleValue(),
                 libertyDebug.booleanValue(), pollingTest.booleanValue(), container.booleanValue(), containerfile, containerBuildContext, containerRunOpts,
