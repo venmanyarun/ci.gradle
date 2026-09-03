@@ -1,0 +1,44 @@
+// Module B: independent Liberty WAR module with its own Containerfile.
+// When started with :moduleb:libertyDev --container, the generated container name
+// must be liberty-dev-moduleb (derived from the Gradle project name 'moduleb').
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'liberty'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven {
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        }
+    }
+    dependencies {
+        classpath "io.openliberty.tools:liberty-gradle-plugin:$lgpVersion"
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+dependencies {
+    providedCompile 'jakarta.platform:jakarta.jakartaee-api:9.1.0'
+    libertyRuntime group: runtimeGroup, name: kernelArtifactId, version: runtimeVersion
+}
+
+war {
+    archiveBaseName = 'rest'
+}
+
+liberty {
+    server {
+        name = "defaultServer"
+        verifyAppStartTimeout = 60
+    }
+}

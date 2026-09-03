@@ -1,0 +1,19 @@
+// Root build file for the devc-multimodule container name test.
+// Two independent Liberty submodules (modulea, moduleb), each with its own
+// Containerfile. This test resource validates the Issue 1 fix in ci.common:
+//   https://github.com/OpenLiberty/ci.common/issues/536
+//
+// Each module should get a distinct container name derived from its project name:
+//   :modulea:libertyDev --container  -> container name = liberty-dev-modulea
+//   :moduleb:libertyDev --container  -> container name = liberty-dev-moduleb
+allprojects {
+    group = 'io.openliberty.guides'
+    version = '1.0-SNAPSHOT'
+}
+
+subprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
