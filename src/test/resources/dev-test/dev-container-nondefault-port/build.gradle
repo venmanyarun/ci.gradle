@@ -1,0 +1,49 @@
+apply plugin: "liberty"
+apply plugin: "war"
+
+// Test project for ci.common fix: libertyDevc must publish the effective container port
+// when a non-default HTTP/HTTPS port is configured via server variables.
+//
+// Before the fix, getContainerCommand() always used the hardcoded defaults (9080/9443)
+// regardless of the configured port, so findLocalPort() would fail because 9090 was
+// never published. The integration test (DevcNonDefaultPortTest) verifies the container
+// run command in the log contains ":9090" (not ":9080").
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+        maven {
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        }
+    }
+    dependencies {
+        classpath "io.openliberty.tools:liberty-gradle-plugin:$lgpVersion"
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    providedCompile 'jakarta.platform:jakarta.jakartaee-api:9.1.0'
+}
+
+war {
+    archiveBaseName = 'rest'
+}
+
+// Non-default ports written to configDropins/overrides/liberty-plugin-variable-config.xml.
+// The plugin must read this file when building the container run command.
+liberty.server.var."default.http.port"  = '9090'
+liberty.server.var."default.https.port" = '9453'

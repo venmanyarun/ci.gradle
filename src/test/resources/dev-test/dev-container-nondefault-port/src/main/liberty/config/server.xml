@@ -1,0 +1,20 @@
+<server description="Non-default port test server">
+
+  <featureManager>
+      <feature>restfulWS-3.0</feature>
+  </featureManager>
+
+  <!--
+    Port variables are set to their default values here.
+    The actual override (9090 / 9453) comes from configDropins/overrides/
+    liberty-plugin-variable-config.xml, written by the Gradle plugin from the
+    liberty.server.var.* values in build.gradle.
+  -->
+  <variable name="default.http.port" defaultValue="9080"/>
+  <variable name="default.https.port" defaultValue="9443"/>
+
+  <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
+      id="defaultHttpEndpoint" host="*" />
+
+  <webApplication location="rest.war" contextRoot="/"/>
+</server>
