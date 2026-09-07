@@ -54,10 +54,12 @@ class DevcEmptyLooseAppTest extends BaseDevTest {
         // Pre-create an empty loose-app XML placeholder in the location that
         // DevUtil reads during file-watcher setup, to simulate the race condition
         // where the file exists but contains no content yet.
+        // Use FileOutputStream with append=false to truncate any pre-existing content
+        // (createNewFile() is a no-op when the file already exists from a prior run).
         File looseAppDir = new File(testBuildDir, "build/.libertyDevc/apps")
         looseAppDir.mkdirs()
         File emptyLooseApp = new File(looseAppDir, "rest.war.xml")
-        emptyLooseApp.createNewFile()   // zero-byte file
+        new FileOutputStream(emptyLooseApp, false).close()  // always truncates to zero bytes
         assertTrue("Empty loose-app placeholder must be zero bytes", emptyLooseApp.length() == 0)
 
         runDevMode("--container", testBuildDir)
