@@ -1,0 +1,45 @@
+apply plugin: "liberty"
+apply plugin: "war"
+
+// Test project for ci.common fix: libertyDevc must not throw NullPointerException when
+// the loose application XML file is empty or malformed at startup.
+//
+// The integration test (DevcEmptyLooseAppTest) pre-creates an empty placeholder at
+// build/.libertyDevc/apps/rest.war.xml before launching libertyDev --container,
+// simulating the race condition where the file exists but has no content yet.
+// Dev mode must reach "Liberty is running in dev mode." without printing
+// NullPointerException in the log.
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+        maven {
+            url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        }
+    }
+    dependencies {
+        classpath "io.openliberty.tools:liberty-gradle-plugin:$lgpVersion"
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    providedCompile 'jakarta.platform:jakarta.jakartaee-api:9.1.0'
+}
+
+war {
+    archiveBaseName = 'rest'
+}
