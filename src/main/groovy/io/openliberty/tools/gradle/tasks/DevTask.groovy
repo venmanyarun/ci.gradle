@@ -375,15 +375,15 @@ class DevTask extends AbstractFeatureTask {
 
         private ServerTask serverTask = null;
         DevTaskUtil(File buildDir, File installDirectory, File userDirectory, File serverDirectory, File sourceDirectory, File testSourceDirectory,
-                    File configDirectory, File projectDirectory, List<File> resourceDirs, boolean changeOnDemandTestsAction,
+                    File configDirectory, File projectDirectory, File multiModuleProjectDirectory, List<File> resourceDirs, boolean changeOnDemandTestsAction,
                     boolean  hotTests, boolean  skipTests, boolean skipInstallFeature, String artifactId, int serverStartTimeout,
                     int verifyAppStartTimeout, int appUpdateTimeout, double compileWait,
                     boolean libertyDebug, boolean pollingTest, boolean container, File containerfile, File containerBuildContext,
-                    String containerRunOpts, int containerBuildTimeout, boolean skipDefaultPorts, boolean keepTempContainerfile, 
+                    String containerRunOpts, int containerBuildTimeout, boolean skipDefaultPorts, boolean keepTempContainerfile,
                     String mavenCacheLocation, String packagingType, File buildFile, boolean generateFeatures, List<Path> webResourceDirs,
                     List<ProjectModule> projectModuleList, Map<String, List<String>> parentBuildGradle, File serverOutputDir
         ) throws IOException, PluginExecutionException {
-            super(buildDir, serverDirectory, sourceDirectory, testSourceDirectory, configDirectory, projectDirectory, /* multi module project directory */ projectDirectory,
+            super(buildDir, serverDirectory, sourceDirectory, testSourceDirectory, configDirectory, projectDirectory, /* multi module project directory */ multiModuleProjectDirectory,
                     resourceDirs, changeOnDemandTestsAction, hotTests, skipTests, false /* skipUTs */, false /* skipITs */, skipInstallFeature, artifactId,  serverStartTimeout,
                     verifyAppStartTimeout, appUpdateTimeout, ((long) (compileWait * 1000L)), libertyDebug,
                     true /* useBuildRecompile */, true /* gradle */, pollingTest, container, containerfile, containerBuildContext, containerRunOpts, containerBuildTimeout, skipDefaultPorts,
@@ -1369,13 +1369,21 @@ class DevTask extends AbstractFeatureTask {
             DevTaskHelper.updateParentBuildFiles(parentBuildGradle, project)
         }
         try {
+            // For EAR projects, sibling WAR/JAR modules and the EAR's own build output all live
+            // under the root project dir, not just the EAR subproject dir. DevUtil uses
+            // multiModuleProjectDirectory to decide what folder to mount as /devmode inside the
+            // container, so it must cover the entire root tree for EAR loose-app container mode.
+            String packagingType = DevTaskHelper.getPackagingType(project)
+            File multiModuleProjectDirectory = "ear".equals(packagingType)
+                ? project.getRootProject().getProjectDir()
+                : project.getProjectDir()
             this.util = new DevTaskUtil(project.getLayout().getBuildDirectory().getAsFile().get(), serverInstallDir, getUserDir(project, serverInstallDir),
-                serverDirectory, sourceDirectory, testSourceDirectory, configDirectory, project.getProjectDir(),
+                serverDirectory, sourceDirectory, testSourceDirectory, configDirectory, project.getProjectDir(), multiModuleProjectDirectory,
                 resourceDirs, changeOnDemandTestsAction.booleanValue(), hotTests.booleanValue(), skipTests.booleanValue(), skipInstallFeature.booleanValue(), artifactId, serverStartTimeout.intValue(),
                 verifyAppStartTimeout.intValue(), verifyAppStartTimeout.intValue(), compileWait.doubleValue(),
                 libertyDebug.booleanValue(), pollingTest.booleanValue(), container.booleanValue(), containerfile, containerBuildContext, containerRunOpts,
                 containerBuildTimeout, skipDefaultPorts.booleanValue(), keepTempContainerfile.booleanValue(), localMavenRepoForFeatureUtility,
-                DevTaskHelper.getPackagingType(project), buildFile, generateFeatures.booleanValue(), webResourceDirs, projectModules, parentBuildGradle, new File(outputDir, serverName)
+                packagingType, buildFile, generateFeatures.booleanValue(), webResourceDirs, projectModules, parentBuildGradle, new File(outputDir, serverName)
             );
         } catch (IOException | PluginExecutionException e) {
             throw new GradleException("Error initializing dev mode.", e)

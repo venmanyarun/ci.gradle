@@ -1,0 +1,11 @@
+allprojects {
+    group = 'io.openliberty.guides'
+    version = '1.0-SNAPSHOT'
+}
+
+subprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
